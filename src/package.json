@@ -1,0 +1,19 @@
+{
+  "name": "isekai-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "@types/ws": "^6.0.4",
+    "express": "^4.17.1",
+    "request-promise": "^4.2.5",
+    "winston": "^3.2.1",
+    "ws": "^7.2.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
