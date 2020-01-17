@@ -1,13 +1,20 @@
+import fs from 'promise-fs';
+
 import { QQProtocol } from './protocols/QQProtocol';
 import { BaseProtocol } from './protocols/BaseProtocol';
 import * as winston from 'winston';
 import { Format } from 'logform';
 import { Logger } from './Logger';
+import { createConnection, Connection } from "typeorm";
+import { User } from './entity/User';
+
+import "reflect-metadata";
 
 export class IsekaiRobot {
     config: any;
     protocolList: BaseProtocol[] = [];
     logger: winston.Logger = winston.createLogger();
+    dbi!: Connection;
 
     constructor(config: any){
         this.config = config;
@@ -35,11 +42,19 @@ export class IsekaiRobot {
     }
 
     private async initialize(): Promise<void> {
+        // 初始化数据库
+        let result: boolean = true;
+        if('db' in this.config){
+            result = await this.initDatabase(this.config.db);
+        } else {
+            this.logger.error("没有数据库配置，请填写配置文件的 'db' 字段。");
+            return;
+        }
         // 初始化协议接口
         if('protocol' in this.config){
             await this.initProtocol(this.config.protocol);
         }
-        this.logger.info('机器人加载完成……');
+        this.logger.info('机器人加载完成');
     }
 
     private initLogger(robotLog: string = 'robot.log', errorLog: string = 'error.log'): void {
@@ -70,6 +85,36 @@ export class IsekaiRobot {
         this.logger.add(new winston.transports.Console({
             format: winston.format.combine.apply(null, formats)
         }));
+    }
+
+    private async initDatabase(url: string): Promise<boolean> {
+        try {
+            this.dbi = await createConnection({
+                type: "mysql",
+                host: "localhost",
+                port: 3306,
+                username: "root",
+                password: "root",
+                database: "isekai_bot",
+                synchronize: false,
+                logging: true,
+                entities: [
+                    "entity/**/*.*"
+                ],
+                migrations: [
+                    "migration/**/*.*"
+                ],
+                subscribers: [
+                    "subscriber/**/*.*"
+                ],
+            });
+            this.logger.info('数据库连接成功');
+            return true;
+        } catch(err){
+            this.logger.error('数据库连接错误');
+            this.logger.error(err.stack);
+            return false;
+        }
     }
 
     private async initProtocol(config: any[]): Promise<void> {

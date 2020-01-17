@@ -11,8 +11,14 @@ import { PermissionError } from '../error/PermissionError';
 import { QQMessage } from '../message/QQMessage';
 import { BaseGroup } from '../source/BaseGroup';
 import { BaseUser } from '../source/BaseUser';
+import { BaseMessage } from '../message/BaseMessage';
+import { QQGroup } from '../source/QQGroup';
+import { QQUser } from '../source/QQUser';
 
 export class QQProtocol extends BaseProtocol {
+    /** 协议的id */
+    public protocolId = 1;
+
     /**
      * 回调列表
      */
@@ -33,8 +39,8 @@ export class QQProtocol extends BaseProtocol {
     public nickname: string = '';
 
     private onClosing: boolean = false;
-    private wsApiClient: WebSocket | null = null;
-    private wsEventClient: WebSocket | null = null;
+    private wsApiClient!: WebSocket;
+    private wsEventClient!: WebSocket;
     private jobId: NodeJS.Timeout | null = null;
     private initPromise: Promise<void>;
     private initCallback: { success: CallableFunction, error: CallableFunction } = { success: () => {}, error: () => {} };
@@ -108,7 +114,7 @@ export class QQProtocol extends BaseProtocol {
         });
 
         return new Promise((resolve, reject) => {
-            this.wsApiClient?.on('open', () => {
+            this.wsApiClient.on('open', () => {
                 this.logger.info('已连接到Api接口');
                 this.initUserInfo().then(reject);
                 resolve();
@@ -139,7 +145,7 @@ export class QQProtocol extends BaseProtocol {
         });
 
         return new Promise((resolve, reject) => {
-            this.wsApiClient?.on('open', () => {
+            this.wsApiClient.on('open', () => {
                 this.logger.info('已连接到Event接口');
                 resolve();
             });
@@ -148,7 +154,7 @@ export class QQProtocol extends BaseProtocol {
 
     private async initUserInfo(): Promise<void> {
         try {
-            let userInfo = await this.getAccountInfo();
+            let userInfo = await this.getLoginInfo();
             if(userInfo){
                 this.uid = userInfo.uid;
                 this.nickname = userInfo.nickname;
@@ -196,6 +202,10 @@ export class QQProtocol extends BaseProtocol {
         }
     }
 
+    /**
+     * 接收到事件的处理
+     * @param message 收到的信息
+     */
     private onEventReceived(message: any): void {
         console.log(message);
         if(!('post_type' in message)) return;
@@ -214,21 +224,31 @@ export class QQProtocol extends BaseProtocol {
         }
     }
 
-    public doApiRequest(params: any): Promise<any> {
+    /**
+     * 进行api操作
+     * @param action 操作类型
+     * @param params 参数
+     */
+    public doApiRequest(action: string, params: any = {}): Promise<any> {
         let rid = Utils.randomString(16);
         return new Promise((resolve, reject) => {
             this.apiRequestCallback[rid] = { success: resolve, error: reject, time: Utils.getTimeStamp() };
             params.echo = rid;
-            let data = JSON.stringify(params);
-            this.wsApiClient?.send(data);
+            let data = JSON.stringify({
+                action: action,
+                params: params,
+                echo: rid,
+            });
+            this.wsApiClient.send(data);
         });
     }
 
-    public async getAccountInfo(): Promise<{uid: number, nickname: string} | null> {
+    /**
+     * 获取当前机器人账号信息
+     */
+    public async getLoginInfo(): Promise<{uid: number, nickname: string} | null> {
         try {
-            let data = await this.doApiRequest({
-                action: 'get_login_info'
-            });
+            let data = await this.doApiRequest('get_login_info');
             return {
                 uid: data.user_id,
                 nickname: data.nickname,
@@ -239,12 +259,53 @@ export class QQProtocol extends BaseProtocol {
         return null;
     }
 
+    /**
+     * 发送私聊消息
+     * @param user 用户
+     * @param msg 消息
+     */
+    public async sendMessage(user: QQUser, msg: BaseMessage): Promise<void> {
+        let uid = user.uid;
+        let textMsg = msg.toString();
+
+        try {
+            await this.doApiRequest('send_private_msg', {
+                user_id: uid,
+                message: textMsg,
+            });
+        } catch(err){
+            this.logger.error(err);
+        }
+    }
+
+    /**
+     * 发送群消息
+     * @param group 群
+     * @param msg 消息
+     */
+    public async sendGroupMessage(group: QQGroup, msg: QQMessage): Promise<void> {
+        let gid = group.gid;
+        let textMsg = msg.toString();
+
+        try {
+            await this.doApiRequest('send_group_msg', {
+                group_id: gid,
+                message: textMsg,
+            });
+        } catch(err){
+            this.logger.error(err);
+        }
+    }
+
     private onPrivateMessage(message: any): void {
         this.logger.info('收到私聊消息：' + message.sender.user_id + ' => ' + message.message);
     }
 
     private onGroupMessage(message: any): void {
         this.logger.info('收到群消息：' + message.sender.user_id + ' => ' + message.message);
+        //判断是否是指令
+        let puredMessage = message.replace(/\[CQ:.*?\]/g, '').trim();
+        
     }
 
     private job(){

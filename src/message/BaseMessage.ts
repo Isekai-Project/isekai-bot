@@ -10,15 +10,20 @@ export class BaseMessage {
     /** 消息发送时间 */
     public time: number = 0;
     /** 提到的用户 */
-    public mentionList: string[] = [];
+    public mentionList: number[] = [];
     /** 发送目标 */
     public target: BaseUser | BaseGroup | null = null;
 
-    /** 解析收到的消息 */
+    /** 解析收到的消息（需要子类实现）
+     * @param msgData 文本消息
+     */
     public fromString(msgData: string): void {
 
     }
 
+    /**
+     * 转换为字符串形式（用于发送）
+     */
     public toString(): string {
         let msgTextList = [];
         for(let i = 0; i < this.message.length; i ++){
@@ -43,5 +48,27 @@ export class BaseMessage {
             }
         }
         return msgTextList.join('').trim();
+    }
+
+    /**
+     * 提到用户
+     * @param user 用户
+     */
+    public mention(user: BaseUser): void {
+        this.mentionList.push(user.uid);
+    }
+
+    /**
+     * 取消提到用户
+     * @param user 用户
+     */
+    public removeMention(user: BaseUser): void {
+        let position = this.mentionList.indexOf(user.uid);
+        if(position >= 0){
+            for(let i = position; i < this.mentionList.length - 1; i ++){
+                this.mentionList[i] = this.mentionList[i + 1];
+            }
+            this.mentionList.pop();
+        }
     }
 }

@@ -51,9 +51,10 @@ export class Logger {
     public error(prefix: string, message: Error): void;
     public error(arg1:any, arg2?:any) {
         let meta = this.channel;
-        let message = '';
+        let message: any;
         if(arg2){
             meta += ' ' + arg1;
+            
             message = arg2;
         } else {
             message = arg1
