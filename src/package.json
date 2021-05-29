@@ -16,7 +16,7 @@
       "sequelize": "^5.21.3",
       "typeorm": "^0.2.22",
       "winston": "^3.2.1",
-      "ws": "^7.2.1"
+      "ws": "^7.4.6"
    },
    "devDependencies": {
       "ts-node": "3.3.0",
