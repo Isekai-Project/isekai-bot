@@ -7,7 +7,7 @@
       "@types/promise-fs": "^2.1.0",
       "@types/sequelize": "^4.28.8",
       "@types/ws": "^6.0.4",
-      "express": "^4.17.1",
+      "express": "^4.17.3",
       "mysql": "^2.14.1",
       "mysql2": "^2.1.0",
       "promise-fs": "^2.1.1",
